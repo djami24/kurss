@@ -96,6 +96,7 @@
     justify-content:center;
     gap: 8px;
     margin-bottom: 16px;
+    flex-wrap: wrap;
   }
   .curr-tab{
     font-family:'IBM Plex Mono', monospace;
@@ -368,6 +369,7 @@
   <div class="curr-tabs">
     <button class="curr-tab active" data-cur="USD" type="button">USD</button>
     <button class="curr-tab" data-cur="RUB" type="button">RUB</button>
+    <button class="curr-tab" data-cur="CNY" type="button">CNY</button>
   </div>
 
   <div class="board">
@@ -397,6 +399,7 @@
       <select id="calcCurSelect">
         <option value="USD">USD</option>
         <option value="RUB">RUB</option>
+        <option value="CNY">CNY</option>
       </select>
       <input type="text" inputmode="decimal" id="usdInput" placeholder="0" value="1">
     </div>
@@ -417,18 +420,19 @@
 
   <footer>
     Manba: <a href="https://cbu.uz" target="_blank" rel="noopener">cbu.uz</a> — O'zbekiston Respublikasi Markaziy banki rasmiy sayti.<br>
-    Ushbu kurslar (USD, RUB) faqat statistik/hisob-kitob maqsadlarida beriladi, bank sotib olish yoki sotish majburiyatini bildirmaydi.
+    Ushbu kurslar (USD, RUB, CNY) faqat statistik/hisob-kitob maqsadlarida beriladi, bank sotib olish yoki sotish majburiyatini bildirmaydi.
   </footer>
 </div>
 
 <script>
 const CUR_INFO = {
   USD: { title: 'AQSH dollari kursi', unitLabel: "1 AQSH dollari uchun", code: 'USD / UZS' },
-  RUB: { title: 'Rossiya rubli kursi', unitLabel: '1 Rossiya rubli uchun', code: 'RUB / UZS' }
+  RUB: { title: 'Rossiya rubli kursi', unitLabel: '1 Rossiya rubli uchun', code: 'RUB / UZS' },
+  CNY: { title: 'Xitoy yuani kursi', unitLabel: '1 Xitoy yuani uchun', code: 'CNY / UZS' }
 };
 
-let rates = { USD: null, RUB: null };   // {rate, diff, date} yoki null
-let dataLoaded = { USD: false, RUB: false };
+let rates = { USD: null, RUB: null, CNY: null };   // {rate, diff, date} yoki null
+let dataLoaded = { USD: false, RUB: false, CNY: false };
 let manualMode = false;
 let boardCur = 'USD';   // yuqoridagi taxtada ko'rsatilayotgan valyuta
 let calcCur = 'USD';    // kalkulyatorda tanlangan valyuta
@@ -588,7 +592,7 @@ manualToggle.addEventListener('click', () => {
   recalc();
 });
 
-// Yuqoridagi taxtada USD / RUB o'rtasida almashtirish
+// Yuqoridagi taxtada USD / RUB / CNY o'rtasida almashtirish
 currTabs.forEach(tab => {
   tab.addEventListener('click', () => {
     currTabs.forEach(t => t.classList.remove('active'));
@@ -598,7 +602,7 @@ currTabs.forEach(tab => {
   });
 });
 
-// Kalkulyatorda valyuta tanlash (USD yoki RUB)
+// Kalkulyatorda valyuta tanlash (USD, RUB yoki CNY)
 calcCurSelect.addEventListener('change', () => {
   calcCur = calcCurSelect.value;
   manualRateLabel.textContent = 'Kurs (' + calcCur + ')';
@@ -643,13 +647,14 @@ async function fetchRate(){
   // Agar avval muvaffaqiyatli kurs ko'rsatilgan bo'lsa, xabarni
   // "yangilanmoqda" deb ko'rsatamiz, lekin joriy raqamni o'chirmaymiz —
   // shunda kurs ekranda o'zgarib/yo'qolib ketmaydi.
-  if(!rates.USD && !rates.RUB){
+  if(!rates.USD && !rates.RUB && !rates.CNY){
     statusLine.textContent = 'Kurs yuklanmoqda…';
   }
 
-  const [usdResult, rubResult] = await Promise.allSettled([
+  const [usdResult, rubResult, cnyResult] = await Promise.allSettled([
     fetchOneRate('USD'),
-    fetchOneRate('RUB')
+    fetchOneRate('RUB'),
+    fetchOneRate('CNY')
   ]);
 
   if(usdResult.status === 'fulfilled'){
@@ -660,11 +665,15 @@ async function fetchRate(){
     rates.RUB = rubResult.value;
     dataLoaded.RUB = true;
   }
+  if(cnyResult.status === 'fulfilled'){
+    rates.CNY = cnyResult.value;
+    dataLoaded.CNY = true;
+  }
 
-  if(rates.USD || rates.RUB){
+  if(rates.USD || rates.RUB || rates.CNY){
     updateBoard();
     if(!manualMode) recalc();
-    if(rates.USD && rates.RUB){
+    if(rates.USD && rates.RUB && rates.CNY){
       statusLine.innerHTML = 'Yangilandi: rasmiy manba — <a href="https://cbu.uz" target="_blank" rel="noopener">cbu.uz</a>';
     } else {
       statusLine.innerHTML = "Ba'zi kurslar yangilanmadi, oxirgi bilingan qiymatlar ko'rsatilmoqda. Manba: <a href=\"https://cbu.uz\" target=\"_blank\" rel=\"noopener\">cbu.uz</a>";
@@ -675,7 +684,7 @@ async function fetchRate(){
 }
 
 function handleFetchFailure(){
-  if(rates.USD || rates.RUB){
+  if(rates.USD || rates.RUB || rates.CNY){
     // Kamida bitta kurs allaqachon ko'rsatilgan — uni o'chirmaymiz, faqat ogohlantiramiz.
     statusLine.innerHTML = "Yangilanmadi, oxirgi bilingan kurs ko'rsatilmoqda. Manba: <a href=\"https://cbu.uz\" target=\"_blank\" rel=\"noopener\">cbu.uz</a>";
     return;
